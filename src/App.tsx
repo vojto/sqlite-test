@@ -20,6 +20,11 @@ const migrations: Record<string, Migration> = {
         .addColumn("id", "integer", (col) => col.primaryKey())
         .addColumn("name", "text", (col) => col.notNull())
         .execute();
+
+      await db
+        .insertInto("groceries")
+        .values([{ name: "Milk" }, { name: "Eggs" }])
+        .execute();
     },
     down: async (db: Kysely<any>) => {
       await db.schema.dropTable("person").execute();
@@ -33,27 +38,79 @@ const migrator = new Migrator({
 });
 
 const App: React.FC = () => {
+  const [groceries, setGroceries] = React.useState<
+    { id: number; name: string }[]
+  >([]);
+
   // Define the callback function
-  const startTest = async () => {
+  const fetchGroceries = async () => {
     await migrator.migrateToLatest();
 
     const data = await db
       .selectFrom("groceries")
-      .select("name")
-      .orderBy("name", "asc")
+      .select(["id", "name"])
+      .orderBy("id", "asc")
       .execute();
+
+    setGroceries(data);
 
     console.log("fetched groceries", data);
   };
 
+  const insertItem = async () => {
+    const name = prompt("Enter grocery name");
+
+    if (!name) {
+      return;
+    }
+
+    await db.insertInto("groceries").values({ name }).execute();
+
+    await fetchGroceries();
+  };
+
   return (
     <div className="p-10">
-      <button
-        onClick={startTest}
-        className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-75"
-      >
-        Start Test
-      </button>
+      <div className="flex space-x-2">
+        <button
+          onClick={fetchGroceries}
+          className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-75"
+        >
+          Fetch groceries
+        </button>
+
+        <button
+          onClick={insertItem}
+          className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-75"
+        >
+          Add item
+        </button>
+      </div>
+
+      {/* Table structure */}
+      <div className="mt-4">
+        <table className="table-auto w-full mt-2">
+          <thead>
+            <tr className="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+              <th className="py-3 px-6 text-left">ID</th>
+              <th className="py-3 px-6 text-left">Name</th>
+            </tr>
+          </thead>
+          <tbody className="text-gray-600 text-sm font-light">
+            {groceries.map((grocery) => (
+              <tr
+                className="border-b border-gray-200 hover:bg-gray-100"
+                key={grocery.id}
+              >
+                <td className="py-3 px-6 text-left whitespace-nowrap">
+                  {grocery.id}
+                </td>
+                <td className="py-3 px-6 text-left">{grocery.name}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
